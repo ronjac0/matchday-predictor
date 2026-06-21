@@ -5,13 +5,14 @@ import { revalidatePath } from 'next/cache';
 
 const API_URL = 'https://api.football-data.org/v4/competitions/WC/matches';
 
-// FIX: Added 'formData?: FormData' to satisfy Vercel's strict form action type-checking
-export async function syncLiveMatches(formData?: FormData) {
+// The function now explicitly returns Promise<void> to satisfy strict HTML Form typing
+export async function syncLiveMatches(formData: FormData): Promise<void> {
   const supabase = await createClient();
   const apiKey = process.env.NEXT_PUBLIC_FOOTBALL_API_KEY;
 
   if (!apiKey) {
-    return { error: 'Missing API Key in .env.local' };
+    console.error('Missing API Key in .env.local');
+    return;
   }
 
   try {
@@ -25,7 +26,7 @@ export async function syncLiveMatches(formData?: FormData) {
     const data = await response.json();
     
     if (!data.matches) {
-        throw new Error('Invalid data format received from API');
+      throw new Error('Invalid data format received from API');
     }
 
     const upcomingMatches = data.matches.filter((m: any) => m.status === 'SCHEDULED' || m.status === 'TIMED').slice(0, 10);
@@ -43,9 +44,7 @@ export async function syncLiveMatches(formData?: FormData) {
     if (error) throw error;
 
     revalidatePath('/dashboard');
-    return { success: true, message: `Synced ${formattedMatches.length} live matches!` };
-
   } catch (error: any) {
-    return { error: error.message };
+    console.error('API Sync Error:', error.message);
   }
 }

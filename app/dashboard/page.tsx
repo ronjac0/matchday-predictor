@@ -50,11 +50,11 @@ export default async function DashboardPage() {
   return (
     <div className="min-h-screen bg-[#000000] text-zinc-100 font-sans selection:bg-emerald-500/30 relative">
       
-      {/* SUBTLE BACKGROUND GLOW EFFECTS */}
+      {/* GLOW DECORATIONS */}
       <div className="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-900/20 rounded-full blur-[120px] pointer-events-none z-0"></div>
       <div className="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-900/10 rounded-full blur-[120px] pointer-events-none z-0"></div>
 
-      {/* TOP NAVIGATION BAR */}
+      {/* NAV */}
       <nav className="border-b border-white/5 bg-black/50 backdrop-blur-xl sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -78,7 +78,6 @@ export default async function DashboardPage() {
             </form>
             <div className="h-6 w-px bg-white/10"></div>
             
-            {/* PREMIUM WALLET DISPLAY */}
             <div className="flex items-center gap-3">
               <div className="text-right hidden sm:block">
                 <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Manager</p>
@@ -93,13 +92,12 @@ export default async function DashboardPage() {
         </div>
       </nav>
 
-      {/* MAIN CONTENT AREA */}
+      {/* CORE FRAMEWORK */}
       <main className="max-w-7xl mx-auto px-6 py-10 grid grid-cols-1 xl:grid-cols-12 gap-10 relative z-10">
         
-        {/* LEFT COLUMN: MATCHES & HISTORY (Takes up 8 columns) */}
         <div className="xl:col-span-8 space-y-12">
           
-          {/* SECTION 1: LIVE FIXTURES */}
+          {/* FEATURED MATCHES */}
           <section>
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-black text-white uppercase tracking-wider flex items-center gap-3">
@@ -121,34 +119,27 @@ export default async function DashboardPage() {
                   return (
                     <div key={match.id} className="bg-zinc-900/40 border border-white/5 rounded-2xl overflow-hidden hover:bg-zinc-900/80 hover:border-white/10 transition-all duration-300 shadow-2xl group">
                       
-                      {/* MATCHUP ROW (THE "TICKET") */}
                       <div className="p-6 sm:p-8 flex items-center justify-between relative overflow-hidden">
-                        
-                        {/* Background Team Names (Subtle Watermark effect) */}
                         <div className="absolute top-1/2 left-0 -translate-y-1/2 -translate-x-1/4 text-[100px] font-black text-white/[0.02] whitespace-nowrap pointer-events-none uppercase">{match.team_a}</div>
                         <div className="absolute top-1/2 right-0 -translate-y-1/2 translate-x-1/4 text-[100px] font-black text-white/[0.02] whitespace-nowrap pointer-events-none uppercase">{match.team_b}</div>
 
-                        {/* Team A */}
                         <div className="flex items-center gap-4 w-[40%] z-10">
                           <span className="text-5xl sm:text-6xl drop-shadow-lg group-hover:scale-110 transition-transform duration-500">{getFlag(match.team_a)}</span>
                           <span className="text-lg sm:text-2xl font-black text-white uppercase tracking-tight truncate">{match.team_a}</span>
                         </div>
                         
-                        {/* Center VS Indicator */}
                         <div className="w-[20%] flex flex-col items-center justify-center z-10">
                           <div className="bg-black/50 border border-white/10 px-4 py-2 rounded-xl backdrop-blur-md">
                             <span className="text-xs uppercase tracking-widest text-zinc-400 font-black">VS</span>
                           </div>
                         </div>
                         
-                        {/* Team B */}
                         <div className="flex items-center justify-end gap-4 w-[40%] z-10 text-right">
                           <span className="text-lg sm:text-2xl font-black text-white uppercase tracking-tight truncate">{match.team_b}</span>
                           <span className="text-5xl sm:text-6xl drop-shadow-lg group-hover:scale-110 transition-transform duration-500">{getFlag(match.team_b)}</span>
                         </div>
                       </div>
                       
-                      {/* ACTION ROW (BETTING CONTROLS) */}
                       <div className="bg-black/40 border-t border-white/5 p-4 sm:px-8">
                         {match.status !== 'scheduled' ? (
                           <div className="text-center py-2">
@@ -170,7 +161,6 @@ export default async function DashboardPage() {
                           <form action={placeBet} className="flex flex-col sm:flex-row gap-4 items-center">
                             <input type="hidden" name="matchId" value={match.id} />
                             
-                            {/* Custom styled select */}
                             <div className="w-full sm:w-1/3 relative">
                               <select name="predictedTeam" required className="w-full bg-zinc-900/80 border border-white/10 rounded-xl p-3.5 text-sm font-bold text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 appearance-none cursor-pointer transition-colors">
                                 <option value="" className="text-zinc-500">Select Winner...</option>
@@ -180,13 +170,12 @@ export default async function DashboardPage() {
                               <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500">▼</div>
                             </div>
                             
-                            {/* Custom styled input */}
                             <div className="w-full sm:w-1/3 relative">
                               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 text-xs font-black tracking-widest">PTS</span>
                               <input type="number" name="wagerAmount" placeholder="Stake" required min="1" className="w-full bg-zinc-900/80 border border-white/10 rounded-xl p-3.5 pl-12 text-sm font-black text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 font-mono transition-colors" />
                             </div>
                             
-                            <button type="submit" className="w-full sm:w-1/3 bg-emerald-500 hover:bg-emerald-400 text-black font-black uppercase tracking-widest rounded-xl p-3.5 text-sm transition-all transform hover:scale-[1.02] shadow-[0_0_20px_rgba(16,185,129,0.2)] hover:shadow-[0_0_25px_rgba(16,185,129,0.4)]">
+                            <button type="submit" className="w-full sm:w-1/3 bg-emerald-500 hover:bg-emerald-400 text-black font-black uppercase tracking-widest rounded-xl p-3.5 text-sm transition-all transform hover:scale-[1.02] shadow-[0_0_20px_rgba(16,185,129,0.2)]">
                               Place Wager
                             </button>
                           </form>
@@ -199,7 +188,7 @@ export default async function DashboardPage() {
             )}
           </section>
 
-          {/* SECTION 2: MY BETTING HISTORY */}
+          {/* BETTING HISTORY */}
           <section>
             <h2 className="text-lg font-black text-white uppercase tracking-wider mb-6 flex items-center gap-3">
               <span className="w-1 h-6 bg-zinc-700 rounded-full"></span>
@@ -248,7 +237,7 @@ export default async function DashboardPage() {
 
         </div>
 
-        {/* RIGHT COLUMN: LEADERBOARD (Takes up 4 columns) */}
+        {/* LEADERBOARD */}
         <div className="xl:col-span-4">
           <div className="bg-zinc-900/40 border border-white/5 rounded-3xl p-8 sticky top-28 backdrop-blur-md shadow-2xl">
             
@@ -285,10 +274,6 @@ export default async function DashboardPage() {
                   </div>
                 )
               })}
-            </div>
-            
-            <div className="mt-8 pt-6 border-t border-white/5 text-center">
-              <p className="text-xs text-zinc-600 font-semibold">Rankings update in real-time.</p>
             </div>
           </div>
         </div>

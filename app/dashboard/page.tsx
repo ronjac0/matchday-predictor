@@ -2,44 +2,33 @@ import { createClient } from '@/lib/supabase';
 import { redirect } from 'next/navigation';
 import { placeBet } from '../actions/place-bet';
 import { syncLiveMatches } from '../actions/sync-matches';
-import BetPopup from './bet-popup'; // Import the new client component!
+import { claimDailyBonus } from '../actions/claim-daily';
+import BetPopup from './bet-popup';
 
-// --- MASSIVE FLAG DICTIONARY ---
+// --- DICTIONARIES & FORMATTERS ---
 const getFlag = (teamName: string) => {
   if (!teamName) return '';
   const name = teamName.toLowerCase().replace(/ fc| afc| united| city| national team/ig, '').trim();
-  
   const flags: Record<string, string> = {
     'argentina': '🇦🇷', 'france': '🇫🇷', 'brazil': '🇧🇷', 'england': '🏴󠁧󠁢󠁥󠁮󠁧󠁿',
-    'portugal': '🇵🇹', 'spain': '🇪🇸', 'germany': '🇩🇪', 'italy': '🇮🇹',
-    'netherlands': '🇳🇱', 'croatia': '🇭🇷', 'morocco': '🇲🇦', 'usa': '🇺🇸',
-    'united states': '🇺🇸', 'mexico': '🇲🇽', 'japan': '🇯🇵', 'senegal': '🇸🇳',
-    'uruguay': '🇺🇾', 'belgium': '🇧🇪', 'canada': '🇨🇦', 'south korea': '🇰🇷',
-    'cape verde': '🇨🇻', 'cabo verde': '🇨🇻', 'ivory coast': '🇨🇮', "cote d'ivoire": '🇨🇮',
-    'ghana': '🇬🇭', 'nigeria': '🇳🇬', 'egypt': '🇪🇬', 'cameroon': '🇨🇲',
-    'algeria': '🇩🇿', 'wales': '🏴󠁧󠁢󠁷󠁬󠁳󠁿', 'scotland': '🏴󠁧󠁢󠁳󠁣󠁴󠁿', 'ireland': '🇮🇪',
-    'switzerland': '🇨🇭', 'austria': '🇦🇹', 'poland': '🇵🇱', 'sweden': '🇸🇪',
-    'denmark': '🇩🇰', 'norway': '🇳🇴', 'finland': '🇫🇮', 'iceland': '🇮🇸',
-    'australia': '🇦🇺', 'new zealand': '🇳🇿', 'saudi arabia': '🇸🇦', 'qatar': '🇶🇦',
-    'iran': '🇮🇷', 'iraq': '🇮🇶', 'uae': '🇦🇪', 'colombia': '🇨🇴',
-    'chile': '🇨🇱', 'peru': '🇵🇪', 'ecuador': '🇪🇨', 'paraguay': '🇵🇾',
-    'venezuela': '🇻🇪', 'bolivia': '🇧🇴', 'jamaica': '🇯🇲', 'costa rica': '🇨🇷',
-    'panama': '🇵🇦', 'honduras': '🇭🇳', 'el salvador': '🇸🇻', 'trinidad and tobago': '🇹🇹',
-    'curacao': '🇨🇼', 'guinea-bissau': '🇬🇼', 'mali': '🇲🇱', 'burkina faso': '🇧🇫',
-    'south africa': '🇿🇦', 'tunisia': '🇹🇳', 'greece': '🇬🇷', 'turkey': '🇹🇷',
-    'serbia': '🇷🇸', 'bosnia': '🇧🇦', 'hungary': '🇭🇺', 'romania': '🇷🇴',
-    'bulgaria': '🇧🇬', 'ukraine': '🇺🇦', 'czech republic': '🇨🇿', 'slovakia': '🇸🇰'
+    'portugal': '🇵🇹', 'spain': '🇪🇸', 'germany': '🇩🇪', 'italy': '🇮🇹', 'netherlands': '🇳🇱',
+    'croatia': '🇭🇷', 'morocco': '🇲🇦', 'usa': '🇺🇸', 'united states': '🇺🇸', 'mexico': '🇲🇽'
   };
   return flags[name] || '🏳️';
 };
 
-// --- TIME FORMATTER ---
 const formatMatchTime = (dateStr: string) => {
   if (!dateStr) return '';
   const d = new Date(dateStr);
-  return d.toLocaleString('en-US', { 
-    timeZone: 'UTC', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' 
-  }) + ' UTC';
+  return d.toLocaleString('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) + ' UTC';
+};
+
+// --- MANAGER TIER ENGINE ---
+const getManagerTier = (points: number) => {
+  if (points >= 10000) return { title: '👑 The Oracle', color: 'text-amber-400' };
+  if (points >= 5000) return { title: '🥇 The Gaffer', color: 'text-yellow-300' };
+  if (points >= 2000) return { title: '🥈 First Team', color: 'text-zinc-300' };
+  return { title: '🥉 Academy', color: 'text-orange-400' };
 };
 
 export default async function DashboardPage() {
@@ -56,45 +45,90 @@ export default async function DashboardPage() {
 
   const userBetsMap = new Map();
   userBetsData.data?.forEach(bet => userBetsMap.set(bet.match_id, bet));
+  
+  const currentTier = getManagerTier(userProfile.data?.wallet_balance || 0);
 
   return (
-    <div className="min-h-screen bg-[#000000] text-zinc-100 font-sans selection:bg-emerald-500/30 relative">
+    <div className="min-h-screen bg-[#000000] text-zinc-100 font-sans selection:bg-emerald-500/30 relative overflow-x-hidden">
       
-      {/* RENDER THE POPUP HERE */}
+      {/* CUSTOM ANIMATIONS */}
+      <style dangerouslySetInnerHTML={{__html: `
+        @keyframes marquee { 0% { transform: translateX(0%); } 100% { transform: translateX(-50%); } }
+        .animate-marquee { display: inline-block; white-space: nowrap; animation: marquee 30s linear infinite; }
+        .animate-marquee:hover { animation-play-state: paused; }
+      `}} />
+
       <BetPopup bets={userBetsData.data || []} matches={matchesData.data || []} />
 
-      {/* GLOW DECORATIONS */}
       <div className="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-900/20 rounded-full blur-[120px] pointer-events-none z-0"></div>
-      <div className="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-900/10 rounded-full blur-[120px] pointer-events-none z-0"></div>
+      
+      {/* --- LIVE NEWS MARQUEE --- */}
+      <div className="bg-emerald-500 text-black text-[10px] font-black uppercase tracking-widest py-1.5 overflow-hidden border-b border-emerald-400 relative z-50">
+        <div className="animate-marquee">
+          <span className="mx-4">⚽ WELCOME TO MATCHDAY PREDICTOR</span> • 
+          <span className="mx-4">🔥 STREAKS COMING SOON</span> • 
+          <span className="mx-4">💰 BUILD YOUR BANKROLL</span> • 
+          <span className="mx-4">👑 REACH 'THE ORACLE' TIER</span> • 
+          <span className="mx-4">📈 ODDS UPDATED HOURLY</span> •
+          <span className="mx-4">⚽ WELCOME TO MATCHDAY PREDICTOR</span> • 
+          <span className="mx-4">🔥 STREAKS COMING SOON</span> • 
+          <span className="mx-4">💰 BUILD YOUR BANKROLL</span> • 
+          <span className="mx-4">👑 REACH 'THE ORACLE' TIER</span> • 
+          <span className="mx-4">📈 ODDS UPDATED HOURLY</span>
+        </div>
+      </div>
 
       {/* NAV */}
-      <nav className="border-b border-white/5 bg-black/50 backdrop-blur-xl sticky top-0 z-50">
+      <nav className="border-b border-white/5 bg-black/50 backdrop-blur-xl sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="w-8 h-8 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-lg flex items-center justify-center shadow-[0_0_15px_rgba(52,211,153,0.3)]">
               <span className="text-black font-black text-xl leading-none">P</span>
             </div>
-            <h1 className="text-xl font-black tracking-tighter text-white uppercase">
+            <h1 className="text-xl font-black tracking-tighter text-white uppercase hidden sm:block">
               Predictor<span className="text-emerald-500">.</span>
             </h1>
           </div>
           
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4 sm:gap-6">
+            
+            {/* DAILY BONUS BUTTON */}
+            <form action={claimDailyBonus}>
+              <button 
+                type="submit" 
+                onClick={(e) => {
+                  const lastClaim = localStorage.getItem('last_claim');
+                  const now = new Date().getTime();
+                  if (lastClaim && now - parseInt(lastClaim) < 86400000) {
+                    e.preventDefault();
+                    alert("You have already claimed your daily bonus! Come back tomorrow.");
+                  } else {
+                    localStorage.setItem('last_claim', now.toString());
+                  }
+                }}
+                className="group flex items-center gap-2 text-[10px] font-black text-amber-400 hover:text-amber-300 transition-colors bg-amber-500/10 border border-amber-500/20 px-3 py-2 rounded-full hover:bg-amber-500/20 uppercase tracking-widest shadow-[0_0_10px_rgba(245,158,11,0.1)]"
+              >
+                🎁 CLAIM +50
+              </button>
+            </form>
+
             <form action={syncLiveMatches}>
               <button type="submit" className="group flex items-center gap-2 text-xs font-bold text-zinc-400 hover:text-white transition-colors bg-white/5 border border-white/10 px-4 py-2 rounded-full hover:bg-white/10">
                 <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                 </span>
-                LIVE SYNC
+                <span className="hidden sm:inline">SYNC</span>
               </button>
             </form>
+            
             <div className="h-6 w-px bg-white/10"></div>
             
             <div className="flex items-center gap-3">
-              <div className="text-right hidden sm:block">
-                <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Manager</p>
-                <p className="text-sm font-bold text-white">{userProfile.data?.display_name}</p>
+              <div className="text-right hidden md:block">
+                {/* DYNAMIC TIER DISPLAY */}
+                <p className={`text-[10px] uppercase tracking-widest font-black ${currentTier.color}`}>{currentTier.title}</p>
+                <p className="text-sm font-bold text-white leading-tight">{userProfile.data?.display_name}</p>
               </div>
               <div className="bg-gradient-to-b from-zinc-800 to-zinc-900 border border-white/10 px-4 py-2 rounded-xl flex items-center gap-3 shadow-lg">
                 <span className="text-emerald-400 font-black text-sm">PTS</span>
@@ -131,10 +165,8 @@ export default async function DashboardPage() {
                   const isCompleted = match.status !== 'scheduled';
 
                   return (
-                    // APPLYING THE BLUR EFFECT CONDITIONALLY TO THE WRAPPER
                     <div key={match.id} className={`bg-zinc-900/40 border border-white/5 rounded-2xl overflow-hidden shadow-2xl group relative transition-all duration-500 ${isCompleted ? 'opacity-40 blur-[2px] grayscale-[0.5] hover:opacity-100 hover:blur-none hover:grayscale-0' : 'hover:bg-zinc-900/80 hover:border-white/10'}`}>
                       
-                      {/* MATCH TIMING PILL */}
                       <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 bg-black/80 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10 shadow-lg">
                         <span className="text-[10px] font-black text-zinc-300 uppercase tracking-widest whitespace-nowrap">
                           {formatMatchTime(match.match_time)}
@@ -197,7 +229,12 @@ export default async function DashboardPage() {
                               <input type="number" name="wagerAmount" placeholder="Stake" required min="1" className="w-full bg-zinc-900/80 border border-white/10 rounded-xl p-3.5 pl-12 text-sm font-black text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 font-mono transition-colors" />
                             </div>
                             
-                            <button type="submit" className="w-full sm:w-1/3 bg-emerald-500 hover:bg-emerald-400 text-black font-black uppercase tracking-widest rounded-xl p-3.5 text-sm transition-all transform hover:scale-[1.02] shadow-[0_0_20px_rgba(16,185,129,0.2)]">
+                            {/* HAPTIC FEEDBACK ADDED HERE */}
+                            <button 
+                              type="submit" 
+                              onClick={() => { if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50); }}
+                              className="w-full sm:w-1/3 bg-emerald-500 hover:bg-emerald-400 text-black font-black uppercase tracking-widest rounded-xl p-3.5 text-sm transition-all transform hover:scale-[1.02] shadow-[0_0_20px_rgba(16,185,129,0.2)]"
+                            >
                               Place Wager
                             </button>
                           </form>
@@ -259,7 +296,7 @@ export default async function DashboardPage() {
 
         </div>
 
-        {/* LEADERBOARD */}
+        {/* LEADERBOARD (NOW WITH TIERS) */}
         <div className="xl:col-span-4">
           <div className="bg-zinc-900/40 border border-white/5 rounded-3xl p-8 sticky top-28 backdrop-blur-md shadow-2xl">
             
@@ -281,14 +318,21 @@ export default async function DashboardPage() {
                 if (index === 0) rankVisual = <span className="text-amber-400 font-black text-lg">1</span>;
                 if (index === 1) rankVisual = <span className="text-zinc-300 font-black text-lg">2</span>;
                 if (index === 2) rankVisual = <span className="text-orange-500 font-black text-lg">3</span>;
+
+                const playerTier = getManagerTier(player.wallet_balance);
                 
                 return (
                   <div key={index} className={`flex justify-between items-center p-4 rounded-xl transition-all ${isTopThree ? 'bg-white/5 border border-white/10' : 'hover:bg-white/[0.02] border border-transparent'}`}>
                     <div className="flex items-center gap-4">
                       <div className="w-6 text-center">{rankVisual}</div>
-                      <span className={`text-sm ${isTopThree ? 'text-white font-black' : 'text-zinc-400 font-bold'}`}>
-                        {player.display_name}
-                      </span>
+                      <div>
+                         <span className={`text-sm block ${isTopThree ? 'text-white font-black' : 'text-zinc-400 font-bold'}`}>
+                           {player.display_name}
+                         </span>
+                         <span className={`text-[9px] uppercase tracking-widest font-black ${playerTier.color}`}>
+                           {playerTier.title}
+                         </span>
+                      </div>
                     </div>
                     <span className="text-sm font-black text-emerald-400 font-mono tracking-tight">
                       {player.wallet_balance}

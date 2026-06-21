@@ -1,22 +1,32 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import confetti from 'canvas-confetti';
 
 export default function BetPopup({ bets, matches }: { bets: any[], matches: any[] }) {
   const [popupBet, setPopupBet] = useState<any>(null);
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    // Look for any bet that has been resolved (won or lost)
     const resolvedBets = bets.filter(b => b.status === 'won' || b.status === 'lost');
     
     for (const bet of resolvedBets) {
-      // Check the browser's temporary storage to see if we already showed this specific bet result
       if (!sessionStorage.getItem(`seen_bet_${bet.id}`)) {
         setPopupBet(bet);
-        // Add a tiny delay so the fade-in animation triggers smoothly after page load
-        setTimeout(() => setIsVisible(true), 400);
-        break; // Only show one popup at a time
+        setTimeout(() => {
+          setIsVisible(true);
+          // TRIGGER CONFETTI IF THEY WON!
+          if (bet.status === 'won') {
+            confetti({
+              particleCount: 150,
+              spread: 80,
+              origin: { y: 0.6 },
+              colors: ['#10b981', '#fbbf24', '#ffffff'],
+              disableForReducedMotion: true
+            });
+          }
+        }, 400);
+        break; 
       }
     }
   }, [bets]);
@@ -29,7 +39,6 @@ export default function BetPopup({ bets, matches }: { bets: any[], matches: any[
 
   const handleClose = () => {
     setIsVisible(false);
-    // Wait for the fade-out animation to finish before destroying the component
     setTimeout(() => {
       sessionStorage.setItem(`seen_bet_${popupBet.id}`, 'true');
       setPopupBet(null);
@@ -40,7 +49,6 @@ export default function BetPopup({ bets, matches }: { bets: any[], matches: any[
     <div className={`fixed inset-0 z-[100] flex items-center justify-center p-4 transition-all duration-300 ${isVisible ? 'opacity-100 backdrop-blur-md bg-black/60' : 'opacity-0 pointer-events-none'}`}>
       <div className={`w-full max-w-sm bg-zinc-950 border ${isWin ? 'border-emerald-500/50 shadow-[0_0_50px_rgba(16,185,129,0.2)]' : 'border-red-500/50 shadow-[0_0_50px_rgba(239,68,68,0.2)]'} rounded-3xl p-8 text-center transform transition-transform duration-500 ${isVisible ? 'scale-100 translate-y-0' : 'scale-95 translate-y-8'}`}>
         
-        {/* ICON CONTAINER */}
         <div className={`w-20 h-20 mx-auto rounded-full flex items-center justify-center mb-6 shadow-inner ${isWin ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
           <span className="text-4xl">{isWin ? '🎉' : '💔'}</span>
         </div>
@@ -56,7 +64,6 @@ export default function BetPopup({ bets, matches }: { bets: any[], matches: any[
             : ` Your prediction on ${popupBet.predicted_team} didn't pan out.`}
         </p>
 
-        {/* PAYOUT DISPLAY */}
         <div className={`inline-block px-6 py-3 rounded-xl mb-8 border ${isWin ? 'bg-emerald-950/30 border-emerald-900/50 text-emerald-400' : 'bg-red-950/30 border-red-900/50 text-red-400'}`}>
           <span className="text-[10px] font-bold uppercase tracking-widest block mb-1">
             {isWin ? 'Payout (Est)' : 'Lost Wager'}
@@ -66,10 +73,7 @@ export default function BetPopup({ bets, matches }: { bets: any[], matches: any[
           </span>
         </div>
 
-        <button 
-          onClick={handleClose}
-          className="w-full bg-white text-black hover:bg-zinc-200 font-black uppercase tracking-widest py-4 rounded-xl text-sm transition-colors"
-        >
+        <button onClick={handleClose} className="w-full bg-white text-black hover:bg-zinc-200 font-black uppercase tracking-widest py-4 rounded-xl text-sm transition-colors">
           Continue
         </button>
       </div>

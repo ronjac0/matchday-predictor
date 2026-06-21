@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase';
 import { redirect } from 'next/navigation';
 import { placeBet } from '../actions/place-bet';
 import { syncLiveMatches } from '../actions/sync-matches';
+import BetPopup from './bet-popup'; // Import the new client component!
 
 // --- MASSIVE FLAG DICTIONARY ---
 const getFlag = (teamName: string) => {
@@ -32,6 +33,15 @@ const getFlag = (teamName: string) => {
   return flags[name] || '🏳️';
 };
 
+// --- TIME FORMATTER ---
+const formatMatchTime = (dateStr: string) => {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  return d.toLocaleString('en-US', { 
+    timeZone: 'UTC', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' 
+  }) + ' UTC';
+};
+
 export default async function DashboardPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -50,6 +60,9 @@ export default async function DashboardPage() {
   return (
     <div className="min-h-screen bg-[#000000] text-zinc-100 font-sans selection:bg-emerald-500/30 relative">
       
+      {/* RENDER THE POPUP HERE */}
+      <BetPopup bets={userBetsData.data || []} matches={matchesData.data || []} />
+
       {/* GLOW DECORATIONS */}
       <div className="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-900/20 rounded-full blur-[120px] pointer-events-none z-0"></div>
       <div className="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-900/10 rounded-full blur-[120px] pointer-events-none z-0"></div>
@@ -115,11 +128,20 @@ export default async function DashboardPage() {
                 {matchesData.data?.map((match) => {
                   const hasBet = userBetsMap.has(match.id);
                   const userBetDetails = userBetsMap.get(match.id);
+                  const isCompleted = match.status !== 'scheduled';
 
                   return (
-                    <div key={match.id} className="bg-zinc-900/40 border border-white/5 rounded-2xl overflow-hidden hover:bg-zinc-900/80 hover:border-white/10 transition-all duration-300 shadow-2xl group">
+                    // APPLYING THE BLUR EFFECT CONDITIONALLY TO THE WRAPPER
+                    <div key={match.id} className={`bg-zinc-900/40 border border-white/5 rounded-2xl overflow-hidden shadow-2xl group relative transition-all duration-500 ${isCompleted ? 'opacity-40 blur-[2px] grayscale-[0.5] hover:opacity-100 hover:blur-none hover:grayscale-0' : 'hover:bg-zinc-900/80 hover:border-white/10'}`}>
                       
-                      <div className="p-6 sm:p-8 flex items-center justify-between relative overflow-hidden">
+                      {/* MATCH TIMING PILL */}
+                      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 bg-black/80 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10 shadow-lg">
+                        <span className="text-[10px] font-black text-zinc-300 uppercase tracking-widest whitespace-nowrap">
+                          {formatMatchTime(match.match_time)}
+                        </span>
+                      </div>
+
+                      <div className="p-6 pt-12 sm:p-8 sm:pt-14 flex items-center justify-between relative overflow-hidden">
                         <div className="absolute top-1/2 left-0 -translate-y-1/2 -translate-x-1/4 text-[100px] font-black text-white/[0.02] whitespace-nowrap pointer-events-none uppercase">{match.team_a}</div>
                         <div className="absolute top-1/2 right-0 -translate-y-1/2 translate-x-1/4 text-[100px] font-black text-white/[0.02] whitespace-nowrap pointer-events-none uppercase">{match.team_b}</div>
 
@@ -141,7 +163,7 @@ export default async function DashboardPage() {
                       </div>
                       
                       <div className="bg-black/40 border-t border-white/5 p-4 sm:px-8">
-                        {match.status !== 'scheduled' ? (
+                        {isCompleted ? (
                           <div className="text-center py-2">
                             <span className="text-xs font-black text-zinc-600 uppercase tracking-widest bg-white/5 px-4 py-2 rounded-lg">Match In Progress / Closed</span>
                           </div>

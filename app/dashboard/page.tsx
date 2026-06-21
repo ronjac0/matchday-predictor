@@ -3,47 +3,33 @@ import { redirect } from 'next/navigation';
 import { placeBet } from '../actions/place-bet';
 import { syncLiveMatches } from '../actions/sync-matches';
 
-// --- EXPANDED FLAG DICTIONARY ---
+// --- MASSIVE FLAG DICTIONARY ---
 const getFlag = (teamName: string) => {
   if (!teamName) return '';
-  const name = teamName.toLowerCase().replace(/ fc| afc| united| city/ig, '').trim();
+  const name = teamName.toLowerCase().replace(/ fc| afc| united| city| national team/ig, '').trim();
+  
   const flags: Record<string, string> = {
     'argentina': '🇦🇷', 'france': '🇫🇷', 'brazil': '🇧🇷', 'england': '🏴󠁧󠁢󠁥󠁮󠁧󠁿',
     'portugal': '🇵🇹', 'spain': '🇪🇸', 'germany': '🇩🇪', 'italy': '🇮🇹',
     'netherlands': '🇳🇱', 'croatia': '🇭🇷', 'morocco': '🇲🇦', 'usa': '🇺🇸',
     'united states': '🇺🇸', 'mexico': '🇲🇽', 'japan': '🇯🇵', 'senegal': '🇸🇳',
-    'uruguay': '🇺🇾', 'belgium': '🇧🇪', 'canada': '🇨🇦', 'south korea': '🇰🇷'
+    'uruguay': '🇺🇾', 'belgium': '🇧🇪', 'canada': '🇨🇦', 'south korea': '🇰🇷',
+    'cape verde': '🇨🇻', 'cabo verde': '🇨🇻', 'ivory coast': '🇨🇮', "cote d'ivoire": '🇨🇮',
+    'ghana': '🇬🇭', 'nigeria': '🇳🇬', 'egypt': '🇪🇬', 'cameroon': '🇨🇲',
+    'algeria': '🇩🇿', 'wales': '🏴󠁧󠁢󠁷󠁬󠁳󠁿', 'scotland': '🏴󠁧󠁢󠁳󠁣󠁴󠁿', 'ireland': '🇮🇪',
+    'switzerland': '🇨🇭', 'austria': '🇦🇹', 'poland': '🇵🇱', 'sweden': '🇸🇪',
+    'denmark': '🇩🇰', 'norway': '🇳🇴', 'finland': '🇫🇮', 'iceland': '🇮🇸',
+    'australia': '🇦🇺', 'new zealand': '🇳🇿', 'saudi arabia': '🇸🇦', 'qatar': '🇶🇦',
+    'iran': '🇮🇷', 'iraq': '🇮🇶', 'uae': '🇦🇪', 'colombia': '🇨🇴',
+    'chile': '🇨🇱', 'peru': '🇵🇪', 'ecuador': '🇪🇨', 'paraguay': '🇵🇾',
+    'venezuela': '🇻🇪', 'bolivia': '🇧🇴', 'jamaica': '🇯🇲', 'costa rica': '🇨🇷',
+    'panama': '🇵🇦', 'honduras': '🇭🇳', 'el salvador': '🇸🇻', 'trinidad and tobago': '🇹🇹',
+    'curacao': '🇨🇼', 'guinea-bissau': '🇬🇼', 'mali': '🇲🇱', 'burkina faso': '🇧🇫',
+    'south africa': '🇿🇦', 'tunisia': '🇹🇳', 'greece': '🇬🇷', 'turkey': '🇹🇷',
+    'serbia': '🇷🇸', 'bosnia': '🇧🇦', 'hungary': '🇭🇺', 'romania': '🇷🇴',
+    'bulgaria': '🇧🇬', 'ukraine': '🇺🇦', 'czech republic': '🇨🇿', 'slovakia': '🇸🇰'
   };
   return flags[name] || '🏳️';
-};
-
-// --- REAL-LIFE CAPTAINS DICTIONARY (Using reliable ESPN CDNs) ---
-const getCaptain = (teamName: string) => {
-  // Safe fallback if teamName is unexpectedly blank
-  if (!teamName) return { name: 'Squad', img: `https://ui-avatars.com/api/?name=TBD&background=27272a&color=10b981` };
-  
-  const name = teamName.toLowerCase().replace(/ fc| afc| united| city/ig, '').trim();
-  
-  // ESPN provides transparent, hotlink-friendly PNGs
-  const captains: Record<string, { name: string, img: string }> = {
-    'argentina': { name: 'L. Messi', img: 'https://a.espncdn.com/combiner/i?img=/i/headshots/soccer/players/full/45843.png' },
-    'france': { name: 'K. Mbappé', img: 'https://a.espncdn.com/combiner/i?img=/i/headshots/soccer/players/full/229497.png' },
-    'brazil': { name: 'Neymar Jr', img: 'https://a.espncdn.com/combiner/i?img=/i/headshots/soccer/players/full/132284.png' },
-    'england': { name: 'H. Kane', img: 'https://a.espncdn.com/combiner/i?img=/i/headshots/soccer/players/full/132104.png' },
-    'portugal': { name: 'C. Ronaldo', img: 'https://a.espncdn.com/combiner/i?img=/i/headshots/soccer/players/full/22774.png' },
-    'spain': { name: 'Á. Morata', img: 'https://a.espncdn.com/combiner/i?img=/i/headshots/soccer/players/full/149021.png' },
-    'germany': { name: 'İ. Gündoğan', img: 'https://a.espncdn.com/combiner/i?img=/i/headshots/soccer/players/full/131710.png' },
-    'usa': { name: 'C. Pulisic', img: 'https://a.espncdn.com/combiner/i?img=/i/headshots/soccer/players/full/225046.png' },
-    'united states': { name: 'C. Pulisic', img: 'https://a.espncdn.com/combiner/i?img=/i/headshots/soccer/players/full/225046.png' },
-    'croatia': { name: 'L. Modrić', img: 'https://a.espncdn.com/combiner/i?img=/i/headshots/soccer/players/full/41606.png' },
-    'netherlands': { name: 'V. van Dijk', img: 'https://a.espncdn.com/combiner/i?img=/i/headshots/soccer/players/full/161060.png' }
-  };
-  
-  // If no official photo is found, generate a sleek initial-based graphic
-  return captains[name] || { 
-    name: 'Squad', 
-    img: `https://ui-avatars.com/api/?name=${teamName.charAt(0)}&background=27272a&color=10b981&font-size=0.4&bold=true` 
-  };
 };
 
 export default async function DashboardPage() {
@@ -55,35 +41,52 @@ export default async function DashboardPage() {
     supabase.from('users').select('*').eq('id', user.id).single(),
     supabase.from('matches').select('*').order('match_time', { ascending: true }),
     supabase.from('users').select('display_name, wallet_balance').order('wallet_balance', { ascending: false }).limit(10),
-    supabase.from('bets').select('match_id, predicted_team, wager_amount').eq('user_id', user.id)
+    supabase.from('bets').select('*').eq('user_id', user.id)
   ]);
 
   const userBetsMap = new Map();
   userBetsData.data?.forEach(bet => userBetsMap.set(bet.match_id, bet));
 
   return (
-    <div className="min-h-screen bg-[#09090b] text-zinc-300 font-sans selection:bg-emerald-500/30">
+    <div className="min-h-screen bg-[#000000] text-zinc-100 font-sans selection:bg-emerald-500/30 relative">
       
+      {/* SUBTLE BACKGROUND GLOW EFFECTS */}
+      <div className="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-900/20 rounded-full blur-[120px] pointer-events-none z-0"></div>
+      <div className="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-900/10 rounded-full blur-[120px] pointer-events-none z-0"></div>
+
       {/* TOP NAVIGATION BAR */}
-      <nav className="border-b border-zinc-800/60 bg-[#09090b]/80 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
-            <h1 className="text-lg font-semibold tracking-tight text-white uppercase">Matchday</h1>
+      <nav className="border-b border-white/5 bg-black/50 backdrop-blur-xl sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-8 h-8 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-lg flex items-center justify-center shadow-[0_0_15px_rgba(52,211,153,0.3)]">
+              <span className="text-black font-black text-xl leading-none">P</span>
+            </div>
+            <h1 className="text-xl font-black tracking-tighter text-white uppercase">
+              Predictor<span className="text-emerald-500">.</span>
+            </h1>
           </div>
           
           <div className="flex items-center gap-6">
             <form action={syncLiveMatches}>
-              <button type="submit" className="text-xs font-medium text-zinc-400 hover:text-white transition-colors">
-                Refresh Odds
+              <button type="submit" className="group flex items-center gap-2 text-xs font-bold text-zinc-400 hover:text-white transition-colors bg-white/5 border border-white/10 px-4 py-2 rounded-full hover:bg-white/10">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                LIVE SYNC
               </button>
             </form>
-            <div className="h-4 w-px bg-zinc-800"></div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-zinc-500 uppercase tracking-wider">{userProfile.data?.display_name}</span>
-              <div className="bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-md flex items-center gap-2">
-                <span className="text-emerald-500 font-mono text-sm">₹</span>
-                <span className="text-sm font-semibold text-white">{userProfile.data?.wallet_balance}</span>
+            <div className="h-6 w-px bg-white/10"></div>
+            
+            {/* PREMIUM WALLET DISPLAY */}
+            <div className="flex items-center gap-3">
+              <div className="text-right hidden sm:block">
+                <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Manager</p>
+                <p className="text-sm font-bold text-white">{userProfile.data?.display_name}</p>
+              </div>
+              <div className="bg-gradient-to-b from-zinc-800 to-zinc-900 border border-white/10 px-4 py-2 rounded-xl flex items-center gap-3 shadow-lg">
+                <span className="text-emerald-400 font-black text-sm">PTS</span>
+                <span className="text-lg font-black text-white tracking-tight">{userProfile.data?.wallet_balance}</span>
               </div>
             </div>
           </div>
@@ -91,138 +94,201 @@ export default async function DashboardPage() {
       </nav>
 
       {/* MAIN CONTENT AREA */}
-      <main className="max-w-7xl mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <main className="max-w-7xl mx-auto px-6 py-10 grid grid-cols-1 xl:grid-cols-12 gap-10 relative z-10">
         
-        {/* LEFT COLUMN: MATCHES (Takes up 8 columns) */}
-        <div className="lg:col-span-8 space-y-6">
-          <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-4">Live & Upcoming Fixtures</h2>
-
-          {matchesData.data?.length === 0 ? (
-            <div className="border border-zinc-800/50 border-dashed rounded-xl p-12 text-center">
-              <p className="text-zinc-500 text-sm">No active fixtures available.</p>
+        {/* LEFT COLUMN: MATCHES & HISTORY (Takes up 8 columns) */}
+        <div className="xl:col-span-8 space-y-12">
+          
+          {/* SECTION 1: LIVE FIXTURES */}
+          <section>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-black text-white uppercase tracking-wider flex items-center gap-3">
+                <span className="w-1 h-6 bg-emerald-500 rounded-full"></span>
+                Featured Matchups
+              </h2>
             </div>
-          ) : (
-            matchesData.data?.map((match) => {
-              const hasBet = userBetsMap.has(match.id);
-              const userBetDetails = userBetsMap.get(match.id);
-              const teamACaptain = getCaptain(match.team_a);
-              const teamBCaptain = getCaptain(match.team_b);
 
-              return (
-                <div key={match.id} className="bg-[#121214] border border-zinc-800/60 rounded-xl overflow-hidden hover:border-zinc-700/80 transition-colors">
-                  
-                  {/* MATCH SCOREBOARD */}
-                  <div className="p-8 flex items-center justify-between">
-                    
-                    {/* Team A */}
-                    <div className="flex flex-col items-center gap-3 w-1/3">
-                      <div className="relative w-16 h-16 rounded-full border border-zinc-800 bg-zinc-900 shadow-sm overflow-hidden flex items-end justify-center">
-                        <img 
-                          src={teamACaptain.img} 
-                          alt={teamACaptain.name} 
-                          className="w-14 h-14 object-cover object-top"
-                        />
-                      </div>
-                      <div className="text-center">
-                        <span className="text-base font-semibold text-white tracking-tight flex items-center justify-center gap-2">
-                          {match.team_a} <span className="text-sm">{getFlag(match.team_a)}</span>
-                        </span>
-                        <span className="text-xs text-zinc-500">{teamACaptain.name}</span>
-                      </div>
-                    </div>
-                    
-                    {/* VS Divider */}
-                    <div className="flex flex-col items-center justify-center w-1/3">
-                      <span className="text-[10px] uppercase tracking-widest text-zinc-600 font-bold mb-2">VS</span>
-                      <div className="w-px h-8 bg-zinc-800"></div>
-                    </div>
-                    
-                    {/* Team B */}
-                    <div className="flex flex-col items-center gap-3 w-1/3">
-                      <div className="relative w-16 h-16 rounded-full border border-zinc-800 bg-zinc-900 shadow-sm overflow-hidden flex items-end justify-center">
-                        <img 
-                          src={teamBCaptain.img} 
-                          alt={teamBCaptain.name} 
-                          className="w-14 h-14 object-cover object-top"
-                        />
-                      </div>
-                      <div className="text-center">
-                        <span className="text-base font-semibold text-white tracking-tight flex items-center justify-center gap-2">
-                          <span className="text-sm">{getFlag(match.team_b)}</span> {match.team_b}
-                        </span>
-                        <span className="text-xs text-zinc-500">{teamBCaptain.name}</span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* BETTING CONTROLS */}
-                  {match.status !== 'scheduled' ? (
-                    <div className="bg-[#09090b] border-t border-zinc-800/60 p-4 text-center">
-                      <span className="text-xs font-medium text-zinc-500 uppercase tracking-widest">Market Closed</span>
-                    </div>
-                  ) : hasBet ? (
-                    <div className="bg-[#052e16]/30 border-t border-emerald-900/30 p-4 px-6 flex justify-between items-center">
-                      <span className="text-xs font-medium text-emerald-500 uppercase tracking-wider flex items-center gap-2">
-                        <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></div> Position Secured
-                      </span>
-                      <div className="text-right">
-                        <span className="text-sm font-medium text-white">{userBetDetails.wager_amount}</span>
-                        <span className="text-xs text-zinc-400 ml-1">on {userBetDetails.predicted_team}</span>
-                      </div>
-                    </div>
-                  ) : (
-                    <form action={placeBet} className="bg-[#09090b] border-t border-zinc-800/60 p-5">
-                      <div className="flex flex-col sm:flex-row gap-3">
-                        <input type="hidden" name="matchId" value={match.id} />
+            {matchesData.data?.length === 0 ? (
+              <div className="border border-white/10 border-dashed rounded-3xl p-16 text-center bg-zinc-950/50">
+                <p className="text-zinc-500 text-sm font-semibold uppercase tracking-widest">No active fixtures available</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-5">
+                {matchesData.data?.map((match) => {
+                  const hasBet = userBetsMap.has(match.id);
+                  const userBetDetails = userBetsMap.get(match.id);
+
+                  return (
+                    <div key={match.id} className="bg-zinc-900/40 border border-white/5 rounded-2xl overflow-hidden hover:bg-zinc-900/80 hover:border-white/10 transition-all duration-300 shadow-2xl group">
+                      
+                      {/* MATCHUP ROW (THE "TICKET") */}
+                      <div className="p-6 sm:p-8 flex items-center justify-between relative overflow-hidden">
                         
-                        <select name="predictedTeam" required className="flex-1 bg-zinc-900 border border-zinc-800 rounded-lg p-2.5 text-sm text-zinc-200 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/50 appearance-none cursor-pointer">
-                          <option value="" className="text-zinc-500">Select Winner</option>
-                          <option value={match.team_a}>{match.team_a}</option>
-                          <option value={match.team_b}>{match.team_b}</option>
-                        </select>
-                        
-                        <div className="relative flex-1">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 text-sm font-mono">₹</span>
-                          <input type="number" name="wagerAmount" placeholder="Stake" required min="1" className="w-full bg-zinc-900 border border-zinc-800 rounded-lg p-2.5 pl-7 text-sm text-zinc-200 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/50 font-mono" />
+                        {/* Background Team Names (Subtle Watermark effect) */}
+                        <div className="absolute top-1/2 left-0 -translate-y-1/2 -translate-x-1/4 text-[100px] font-black text-white/[0.02] whitespace-nowrap pointer-events-none uppercase">{match.team_a}</div>
+                        <div className="absolute top-1/2 right-0 -translate-y-1/2 translate-x-1/4 text-[100px] font-black text-white/[0.02] whitespace-nowrap pointer-events-none uppercase">{match.team_b}</div>
+
+                        {/* Team A */}
+                        <div className="flex items-center gap-4 w-[40%] z-10">
+                          <span className="text-5xl sm:text-6xl drop-shadow-lg group-hover:scale-110 transition-transform duration-500">{getFlag(match.team_a)}</span>
+                          <span className="text-lg sm:text-2xl font-black text-white uppercase tracking-tight truncate">{match.team_a}</span>
                         </div>
                         
-                        <button type="submit" className="bg-white hover:bg-zinc-200 text-black font-semibold rounded-lg px-6 py-2.5 text-sm transition-colors w-full sm:w-auto">
-                          Place Bet
-                        </button>
+                        {/* Center VS Indicator */}
+                        <div className="w-[20%] flex flex-col items-center justify-center z-10">
+                          <div className="bg-black/50 border border-white/10 px-4 py-2 rounded-xl backdrop-blur-md">
+                            <span className="text-xs uppercase tracking-widest text-zinc-400 font-black">VS</span>
+                          </div>
+                        </div>
+                        
+                        {/* Team B */}
+                        <div className="flex items-center justify-end gap-4 w-[40%] z-10 text-right">
+                          <span className="text-lg sm:text-2xl font-black text-white uppercase tracking-tight truncate">{match.team_b}</span>
+                          <span className="text-5xl sm:text-6xl drop-shadow-lg group-hover:scale-110 transition-transform duration-500">{getFlag(match.team_b)}</span>
+                        </div>
                       </div>
-                    </form>
-                  )}
+                      
+                      {/* ACTION ROW (BETTING CONTROLS) */}
+                      <div className="bg-black/40 border-t border-white/5 p-4 sm:px-8">
+                        {match.status !== 'scheduled' ? (
+                          <div className="text-center py-2">
+                            <span className="text-xs font-black text-zinc-600 uppercase tracking-widest bg-white/5 px-4 py-2 rounded-lg">Match In Progress / Closed</span>
+                          </div>
+                        ) : hasBet ? (
+                          <div className="flex justify-between items-center bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4">
+                            <span className="text-xs font-black text-emerald-400 uppercase tracking-widest flex items-center gap-2">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
+                              Bet Locked In
+                            </span>
+                            <div className="flex items-center gap-3">
+                              <span className="text-sm font-bold text-white">{userBetDetails.predicted_team}</span>
+                              <span className="text-emerald-500 font-bold">•</span>
+                              <span className="text-sm font-black text-white font-mono">{userBetDetails.wager_amount} PTS</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <form action={placeBet} className="flex flex-col sm:flex-row gap-4 items-center">
+                            <input type="hidden" name="matchId" value={match.id} />
+                            
+                            {/* Custom styled select */}
+                            <div className="w-full sm:w-1/3 relative">
+                              <select name="predictedTeam" required className="w-full bg-zinc-900/80 border border-white/10 rounded-xl p-3.5 text-sm font-bold text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 appearance-none cursor-pointer transition-colors">
+                                <option value="" className="text-zinc-500">Select Winner...</option>
+                                <option value={match.team_a}>{match.team_a}</option>
+                                <option value={match.team_b}>{match.team_b}</option>
+                              </select>
+                              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500">▼</div>
+                            </div>
+                            
+                            {/* Custom styled input */}
+                            <div className="w-full sm:w-1/3 relative">
+                              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 text-xs font-black tracking-widest">PTS</span>
+                              <input type="number" name="wagerAmount" placeholder="Stake" required min="1" className="w-full bg-zinc-900/80 border border-white/10 rounded-xl p-3.5 pl-12 text-sm font-black text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 font-mono transition-colors" />
+                            </div>
+                            
+                            <button type="submit" className="w-full sm:w-1/3 bg-emerald-500 hover:bg-emerald-400 text-black font-black uppercase tracking-widest rounded-xl p-3.5 text-sm transition-all transform hover:scale-[1.02] shadow-[0_0_20px_rgba(16,185,129,0.2)] hover:shadow-[0_0_25px_rgba(16,185,129,0.4)]">
+                              Place Wager
+                            </button>
+                          </form>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+
+          {/* SECTION 2: MY BETTING HISTORY */}
+          <section>
+            <h2 className="text-lg font-black text-white uppercase tracking-wider mb-6 flex items-center gap-3">
+              <span className="w-1 h-6 bg-zinc-700 rounded-full"></span>
+              Open & Settled Slips
+            </h2>
+            
+            <div className="bg-zinc-900/40 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-sm">
+              {userBetsData.data?.length === 0 ? (
+                <div className="p-12 text-center text-zinc-500 text-sm font-semibold uppercase tracking-widest">No betting history found.</div>
+              ) : (
+                <div className="divide-y divide-white/5">
+                  {userBetsData.data?.map((bet) => {
+                    const match = matchesData.data?.find(m => m.id === bet.match_id);
+                    const matchName = match ? `${match.team_a} vs ${match.team_b}` : 'Unknown Fixture';
+                    
+                    let statusStyle = "text-zinc-400 bg-zinc-800/50 border-zinc-700/50"; 
+                    if (bet.status === 'won') statusStyle = "text-emerald-400 bg-emerald-500/10 border-emerald-500/20";
+                    if (bet.status === 'lost') statusStyle = "text-red-400 bg-red-500/10 border-red-500/20";
+
+                    return (
+                      <div key={bet.id} className="p-5 px-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-white/[0.02] transition-colors">
+                        <div>
+                          <p className="text-sm font-bold text-white">{matchName}</p>
+                          <div className="flex items-center gap-2 mt-1.5">
+                            <span className="text-xs text-zinc-500 font-semibold uppercase tracking-widest">Pick:</span>
+                            <span className="text-xs font-black text-white bg-white/10 px-2 py-0.5 rounded-md">{bet.predicted_team} {getFlag(bet.predicted_team)}</span>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-6">
+                          <div className="text-right">
+                            <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold mb-0.5">Risk</p>
+                            <p className="text-sm font-black text-white font-mono">{bet.wager_amount} PTS</p>
+                          </div>
+                          <div className={`px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest border ${statusStyle} min-w-[90px] text-center`}>
+                            {bet.status || 'Pending'}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
-              );
-            })
-          )}
+              )}
+            </div>
+          </section>
+
         </div>
 
         {/* RIGHT COLUMN: LEADERBOARD (Takes up 4 columns) */}
-        <div className="lg:col-span-4">
-          <div className="bg-[#121214] border border-zinc-800/60 rounded-xl p-6 sticky top-24">
-            <h2 className="text-sm font-semibold text-white tracking-tight mb-6">Global Leaderboard</h2>
+        <div className="xl:col-span-4">
+          <div className="bg-zinc-900/40 border border-white/5 rounded-3xl p-8 sticky top-28 backdrop-blur-md shadow-2xl">
             
-            <div className="space-y-1">
+            <div className="flex items-center gap-3 mb-8">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-600 flex items-center justify-center shadow-[0_0_15px_rgba(245,158,11,0.3)]">
+                <span className="text-xl">🏆</span>
+              </div>
+              <div>
+                <h2 className="text-lg font-black text-white tracking-tight uppercase">Global Ranks</h2>
+                <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Top Predictors</p>
+              </div>
+            </div>
+            
+            <div className="space-y-3">
               {leaderboardData.data?.map((player, index) => {
                 const isTopThree = index < 3;
+                let rankVisual = <span className="text-zinc-600 font-black">{index + 1}</span>;
+                
+                if (index === 0) rankVisual = <span className="text-amber-400 font-black text-lg">1</span>;
+                if (index === 1) rankVisual = <span className="text-zinc-300 font-black text-lg">2</span>;
+                if (index === 2) rankVisual = <span className="text-orange-500 font-black text-lg">3</span>;
                 
                 return (
-                  <div key={index} className="flex justify-between items-center p-3 rounded-lg hover:bg-zinc-900/50 transition-colors group">
-                    <div className="flex items-center gap-3">
-                      <span className={`text-xs font-mono w-4 text-center ${isTopThree ? 'text-emerald-500 font-bold' : 'text-zinc-600'}`}>
-                        {index + 1}
-                      </span>
-                      <span className={`text-sm ${isTopThree ? 'text-zinc-200 font-medium' : 'text-zinc-400'}`}>
+                  <div key={index} className={`flex justify-between items-center p-4 rounded-xl transition-all ${isTopThree ? 'bg-white/5 border border-white/10' : 'hover:bg-white/[0.02] border border-transparent'}`}>
+                    <div className="flex items-center gap-4">
+                      <div className="w-6 text-center">{rankVisual}</div>
+                      <span className={`text-sm ${isTopThree ? 'text-white font-black' : 'text-zinc-400 font-bold'}`}>
                         {player.display_name}
                       </span>
                     </div>
-                    <span className="text-sm font-mono text-zinc-300">
+                    <span className="text-sm font-black text-emerald-400 font-mono tracking-tight">
                       {player.wallet_balance}
                     </span>
                   </div>
                 )
               })}
+            </div>
+            
+            <div className="mt-8 pt-6 border-t border-white/5 text-center">
+              <p className="text-xs text-zinc-600 font-semibold">Rankings update in real-time.</p>
             </div>
           </div>
         </div>

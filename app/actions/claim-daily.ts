@@ -3,7 +3,8 @@
 import { createClient } from '@/lib/supabase';
 import { revalidatePath } from 'next/cache';
 
-export async function claimDailyBonus(): Promise<void> {
+// FIX: Added formData argument to satisfy Vercel's strict type checker
+export async function claimDailyBonus(formData: FormData): Promise<void> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   

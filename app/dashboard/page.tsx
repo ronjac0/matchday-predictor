@@ -96,16 +96,6 @@ export default async function DashboardPage() {
             <form action={claimDailyBonus}>
               <button 
                 type="submit" 
-                onClick={(e) => {
-                  const lastClaim = localStorage.getItem('last_claim');
-                  const now = new Date().getTime();
-                  if (lastClaim && now - parseInt(lastClaim) < 86400000) {
-                    e.preventDefault();
-                    alert("You have already claimed your daily bonus! Come back tomorrow.");
-                  } else {
-                    localStorage.setItem('last_claim', now.toString());
-                  }
-                }}
                 className="group flex items-center gap-2 text-[10px] font-black text-amber-400 hover:text-amber-300 transition-colors bg-amber-500/10 border border-amber-500/20 px-3 py-2 rounded-full hover:bg-amber-500/20 uppercase tracking-widest shadow-[0_0_10px_rgba(245,158,11,0.1)]"
               >
                 🎁 CLAIM +50
@@ -126,7 +116,6 @@ export default async function DashboardPage() {
             
             <div className="flex items-center gap-3">
               <div className="text-right hidden md:block">
-                {/* DYNAMIC TIER DISPLAY */}
                 <p className={`text-[10px] uppercase tracking-widest font-black ${currentTier.color}`}>{currentTier.title}</p>
                 <p className="text-sm font-bold text-white leading-tight">{userProfile.data?.display_name}</p>
               </div>
@@ -229,10 +218,8 @@ export default async function DashboardPage() {
                               <input type="number" name="wagerAmount" placeholder="Stake" required min="1" className="w-full bg-zinc-900/80 border border-white/10 rounded-xl p-3.5 pl-12 text-sm font-black text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 font-mono transition-colors" />
                             </div>
                             
-                            {/* HAPTIC FEEDBACK ADDED HERE */}
                             <button 
                               type="submit" 
-                              onClick={() => { if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50); }}
                               className="w-full sm:w-1/3 bg-emerald-500 hover:bg-emerald-400 text-black font-black uppercase tracking-widest rounded-xl p-3.5 text-sm transition-all transform hover:scale-[1.02] shadow-[0_0_20px_rgba(16,185,129,0.2)]"
                             >
                               Place Wager
@@ -296,7 +283,7 @@ export default async function DashboardPage() {
 
         </div>
 
-        {/* LEADERBOARD (NOW WITH TIERS) */}
+        {/* LEADERBOARD */}
         <div className="xl:col-span-4">
           <div className="bg-zinc-900/40 border border-white/5 rounded-3xl p-8 sticky top-28 backdrop-blur-md shadow-2xl">
             

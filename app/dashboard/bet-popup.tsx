@@ -7,10 +7,8 @@ import { clearBet } from '../actions/clear-bet';
 export default function BetPopup({ bets, matches }: { bets: any[], matches: any[] }) {
   const [popupBet, setPopupBet] = useState<any>(null);
   const [isVisible, setIsVisible] = useState(false);
-  const [isClearing, setIsClearing] = useState(false);
 
   useEffect(() => {
-    // Only show popup for bets that are won/lost AND haven't been cleared yet
     const resolvedBets = bets.filter(b => (b.status === 'won' || b.status === 'lost') && !b.is_cleared);
     
     if (resolvedBets.length > 0) {
@@ -37,15 +35,19 @@ export default function BetPopup({ bets, matches }: { bets: any[], matches: any[
   const matchName = match ? `${match.team_a} vs ${match.team_b}` : 'Matchup';
   const isWin = popupBet.status === 'won';
 
-  const handleClose = async () => {
-    setIsClearing(true);
-    // Tell the database to hide this bet forever
-    await clearBet(popupBet.id);
-    
+  const handleClose = () => {
+    // 1. INSTANTLY hide the popup so the user is never trapped
     setIsVisible(false);
-    setTimeout(() => {
-      setPopupBet(null);
-      setIsClearing(false);
+
+    // 2. Wait for the fade-out animation to finish, then talk to the database
+    setTimeout(async () => {
+      try {
+        await clearBet(popupBet.id);
+      } catch (error) {
+        console.error("Failed to clear bet in database", error);
+      } finally {
+        setPopupBet(null); // Wipe it from memory
+      }
     }, 300); 
   };
 
@@ -79,10 +81,9 @@ export default function BetPopup({ bets, matches }: { bets: any[], matches: any[
 
         <button 
           onClick={handleClose} 
-          disabled={isClearing}
-          className="w-full bg-white text-black hover:bg-zinc-200 font-black uppercase tracking-widest py-4 rounded-xl text-sm transition-colors disabled:opacity-50"
+          className="w-full bg-white text-black hover:bg-zinc-200 font-black uppercase tracking-widest py-4 rounded-xl text-sm transition-colors"
         >
-          {isClearing ? 'Clearing...' : 'Continue'}
+          Continue
         </button>
       </div>
     </div>

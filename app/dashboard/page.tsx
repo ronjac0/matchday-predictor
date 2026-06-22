@@ -1,5 +1,3 @@
-import { forceSettleBets } from '../actions/force-settle';
-// ADD THIS EXACT LINE AT THE VERY TOP to kill the Next.js cache
 export const dynamic = 'force-dynamic';
 
 import { createClient } from '@/lib/supabase';
@@ -9,7 +7,6 @@ import { syncLiveMatches } from '../actions/sync-matches';
 import { claimDailyBonus } from '../actions/claim-daily';
 import BetPopup from './bet-popup';
 
-// --- BULLETPROOF FLAG DICTIONARY ---
 const getFlag = (teamName: string) => {
   if (!teamName) return '🏳️';
   const name = teamName.toLowerCase();
@@ -85,47 +82,44 @@ export default async function DashboardPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/auth');
 
-  // --- THE FIXED SILENT SYNC ---
-  // Grab the single most recently updated match to check the data freshness
-  const { data: recentMatch } = await supabase
-    .from('matches')
-    .select('match_time')
-    .order('match_time', { ascending: false })
-    .limit(1);
-
-  // If we have no matches, OR if the app needs to pull initial data, trigger it.
+  // Background Sync
+  const { data: recentMatch } = await supabase.from('matches').select('match_time').order('match_time', { ascending: false }).limit(1);
   if (!recentMatch || recentMatch.length === 0) {
     await syncLiveMatches(new FormData());
   }
 
-  // Fetch all fresh data simultaneously
-  const [userProfile, matchesData, leaderboardData, userBetsData] = await Promise.all([
+  // Fetch all necessary data
+  const [userProfile, matchesData, leaderboardData, activeBetsData, allHistoryData] = await Promise.all([
     supabase.from('users').select('*').eq('id', user.id).single(),
     supabase.from('matches').select('*').order('match_time', { ascending: true }),
     supabase.from('users').select('display_name, wallet_balance').order('wallet_balance', { ascending: false }).limit(10),
-    supabase.from('bets').select('*').eq('user_id', user.id).eq('is_cleared', false)
+    supabase.from('bets').select('*').eq('user_id', user.id).eq('is_cleared', false),
+    supabase.from('bets').select('status').eq('user_id', user.id) // For analytics
   ]);
 
   const userBetsMap = new Map();
-  userBetsData.data?.forEach(bet => userBetsMap.set(bet.match_id, bet));
+  activeBetsData.data?.forEach(bet => userBetsMap.set(bet.match_id, bet));
   
   const currentTier = getManagerTier(userProfile.data?.wallet_balance || 0);
+
+  // --- NEW: STATISTICAL WIN RATE CALCULATION ---
+  const totalSettled = allHistoryData.data?.filter(b => b.status === 'won' || b.status === 'lost').length || 0;
+  const totalWon = allHistoryData.data?.filter(b => b.status === 'won').length || 0;
+  const winRate = totalSettled > 0 ? Math.round((totalWon / totalSettled) * 100) : 0;
 
   return (
     <div className="min-h-screen bg-[#000000] text-zinc-100 font-sans selection:bg-emerald-500/30 relative overflow-x-hidden">
       
-      {/* CSS Animations for Marquee */}
       <style dangerouslySetInnerHTML={{__html: `
         @keyframes marquee { 0% { transform: translateX(0%); } 100% { transform: translateX(-50%); } }
         .animate-marquee { display: inline-block; white-space: nowrap; animation: marquee 30s linear infinite; }
         .animate-marquee:hover { animation-play-state: paused; }
       `}} />
 
-      <BetPopup bets={userBetsData.data || []} matches={matchesData.data || []} />
+      <BetPopup bets={activeBetsData.data || []} matches={matchesData.data || []} />
 
       <div className="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-900/20 rounded-full blur-[120px] pointer-events-none z-0"></div>
       
-      {/* Live Marquee */}
       <div className="bg-emerald-500 text-black text-[10px] font-black uppercase tracking-widest py-1.5 overflow-hidden border-b border-emerald-400 relative z-50">
         <div className="animate-marquee">
           <span className="mx-4">⚽ WELCOME TO MATCHDAY PREDICTOR</span> • 
@@ -141,7 +135,6 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {/* Navigation */}
       <nav className="border-b border-white/5 bg-black/50 backdrop-blur-xl sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -159,30 +152,22 @@ export default async function DashboardPage() {
                 🎁 CLAIM +50
               </button>
             </form>
-            {/* GOD MODE: FORCE SETTLEMENT BUTTON */}
-<form action={forceSettleBets}>
-  <button type="submit" className="group flex items-center gap-2 text-[10px] font-black text-red-400 hover:text-white transition-colors bg-red-500/10 border border-red-500/20 px-4 py-2 rounded-full hover:bg-red-500/40 uppercase tracking-widest">
-    🚨 FORCE PAYOUT
-  </button>
-</form>
-
-            <form action={syncLiveMatches}>
-              <button type="submit" className="group flex items-center gap-2 text-xs font-bold text-zinc-400 hover:text-white transition-colors bg-white/5 border border-white/10 px-4 py-2 rounded-full hover:bg-white/10">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                </span>
-                <span className="hidden sm:inline">SYNC</span>
-              </button>
-            </form>
             
-            <div className="h-6 w-px bg-white/10"></div>
+            <div className="h-6 w-px bg-white/10 hidden sm:block"></div>
             
-            <div className="flex items-center gap-3">
+            {/* NEW: Cleaned up Manager Portfolio Area */}
+            <div className="flex items-center gap-4">
               <div className="text-right hidden md:block">
                 <p className={`text-[10px] uppercase tracking-widest font-black ${currentTier.color}`}>{currentTier.title}</p>
                 <p className="text-sm font-bold text-white leading-tight">{userProfile.data?.display_name}</p>
               </div>
+
+              {/* NEW: Win Rate Badge */}
+              <div className="hidden sm:flex flex-col items-center justify-center bg-zinc-900 border border-white/10 px-3 py-1.5 rounded-xl">
+                <span className="text-[8px] text-zinc-500 uppercase tracking-widest font-black">Win Rate</span>
+                <span className="text-sm font-mono font-black text-zinc-300">{winRate}%</span>
+              </div>
+
               <div className="bg-gradient-to-b from-zinc-800 to-zinc-900 border border-white/10 px-4 py-2 rounded-xl flex items-center gap-3 shadow-lg">
                 <span className="text-emerald-400 font-black text-sm">PTS</span>
                 <span className="text-lg font-black text-white tracking-tight">{userProfile.data?.wallet_balance}</span>
@@ -192,10 +177,8 @@ export default async function DashboardPage() {
         </div>
       </nav>
 
-      {/* Main Grid Layout */}
       <main className="max-w-7xl mx-auto px-6 py-10 grid grid-cols-1 xl:grid-cols-12 gap-10 relative z-10">
         
-        {/* Left Column: Matches & History */}
         <div className="xl:col-span-8 space-y-12">
           
           <section>
@@ -278,9 +261,11 @@ export default async function DashboardPage() {
                               <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500">▼</div>
                             </div>
                             
-                            <div className="w-full sm:w-1/3 relative">
+                            {/* NEW: Expected Return UI on the input */}
+                            <div className="w-full sm:w-1/3 relative flex items-center">
                               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 text-xs font-black tracking-widest">PTS</span>
-                              <input type="number" name="wagerAmount" placeholder="Stake" required min="1" className="w-full bg-zinc-900/80 border border-white/10 rounded-xl p-3.5 pl-12 text-sm font-black text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 font-mono transition-colors" />
+                              <input type="number" name="wagerAmount" placeholder="Stake" required min="1" className="w-full bg-zinc-900/80 border border-white/10 rounded-xl p-3.5 pl-12 pr-12 text-sm font-black text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 font-mono transition-colors" />
+                              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-emerald-500/50 text-[10px] font-black tracking-widest hidden sm:block">2.0x</span>
                             </div>
                             
                             <button 
@@ -302,22 +287,18 @@ export default async function DashboardPage() {
           <section>
             <h2 className="text-lg font-black text-white uppercase tracking-wider mb-6 flex items-center gap-3">
               <span className="w-1 h-6 bg-zinc-700 rounded-full"></span>
-              Open & Settled Slips
+              Open Slips
             </h2>
             
             <div className="bg-zinc-900/40 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-sm">
-              {userBetsData.data?.length === 0 ? (
-                <div className="p-12 text-center text-zinc-500 text-sm font-semibold uppercase tracking-widest">No betting history found.</div>
+              {activeBetsData.data?.length === 0 ? (
+                <div className="p-12 text-center text-zinc-500 text-sm font-semibold uppercase tracking-widest">No active wagers.</div>
               ) : (
                 <div className="divide-y divide-white/5">
-                  {userBetsData.data?.map((bet) => {
+                  {activeBetsData.data?.map((bet) => {
                     const match = matchesData.data?.find(m => m.id === bet.match_id);
                     const matchName = match ? `${match.team_a} vs ${match.team_b}` : 'Unknown Fixture';
                     
-                    let statusStyle = "text-zinc-400 bg-zinc-800/50 border-zinc-700/50"; 
-                    if (bet.status === 'won') statusStyle = "text-emerald-400 bg-emerald-500/10 border-emerald-500/20";
-                    if (bet.status === 'lost') statusStyle = "text-red-400 bg-red-500/10 border-red-500/20";
-
                     return (
                       <div key={bet.id} className="p-5 px-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-white/[0.02] transition-colors">
                         <div>
@@ -333,8 +314,8 @@ export default async function DashboardPage() {
                             <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold mb-0.5">Risk</p>
                             <p className="text-sm font-black text-white font-mono">{bet.wager_amount} PTS</p>
                           </div>
-                          <div className={`px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest border ${statusStyle} min-w-[90px] text-center`}>
-                            {bet.status || 'Pending'}
+                          <div className="px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest border text-zinc-400 bg-zinc-800/50 border-zinc-700/50 min-w-[90px] text-center">
+                            Live
                           </div>
                         </div>
                       </div>
@@ -347,7 +328,6 @@ export default async function DashboardPage() {
 
         </div>
 
-        {/* Right Column: Leaderboard */}
         <div className="xl:col-span-4">
           <div className="bg-zinc-900/40 border border-white/5 rounded-3xl p-8 sticky top-28 backdrop-blur-md shadow-2xl">
             

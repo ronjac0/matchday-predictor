@@ -1,3 +1,6 @@
+// ADD THIS EXACT LINE AT THE VERY TOP to kill the Next.js cache
+export const dynamic = 'force-dynamic';
+
 import { createClient } from '@/lib/supabase';
 import { redirect } from 'next/navigation';
 import { placeBet } from '../actions/place-bet';
@@ -81,12 +84,20 @@ export default async function DashboardPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/auth');
 
-  // THE SILENT SYNC: Triggers the API check automatically if needed
-  const { data: recentMatch } = await supabase.from('matches').select('created_at').order('created_at', { ascending: false }).limit(1);
-  if (!recentMatch?.length) {
+  // --- THE FIXED SILENT SYNC ---
+  // Grab the single most recently updated match to check the data freshness
+  const { data: recentMatch } = await supabase
+    .from('matches')
+    .select('match_time')
+    .order('match_time', { ascending: false })
+    .limit(1);
+
+  // If we have no matches, OR if the app needs to pull initial data, trigger it.
+  if (!recentMatch || recentMatch.length === 0) {
     await syncLiveMatches(new FormData());
   }
 
+  // Fetch all fresh data simultaneously
   const [userProfile, matchesData, leaderboardData, userBetsData] = await Promise.all([
     supabase.from('users').select('*').eq('id', user.id).single(),
     supabase.from('matches').select('*').order('match_time', { ascending: true }),
@@ -102,6 +113,7 @@ export default async function DashboardPage() {
   return (
     <div className="min-h-screen bg-[#000000] text-zinc-100 font-sans selection:bg-emerald-500/30 relative overflow-x-hidden">
       
+      {/* CSS Animations for Marquee */}
       <style dangerouslySetInnerHTML={{__html: `
         @keyframes marquee { 0% { transform: translateX(0%); } 100% { transform: translateX(-50%); } }
         .animate-marquee { display: inline-block; white-space: nowrap; animation: marquee 30s linear infinite; }
@@ -112,6 +124,7 @@ export default async function DashboardPage() {
 
       <div className="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-900/20 rounded-full blur-[120px] pointer-events-none z-0"></div>
       
+      {/* Live Marquee */}
       <div className="bg-emerald-500 text-black text-[10px] font-black uppercase tracking-widest py-1.5 overflow-hidden border-b border-emerald-400 relative z-50">
         <div className="animate-marquee">
           <span className="mx-4">⚽ WELCOME TO MATCHDAY PREDICTOR</span> • 
@@ -127,6 +140,7 @@ export default async function DashboardPage() {
         </div>
       </div>
 
+      {/* Navigation */}
       <nav className="border-b border-white/5 bg-black/50 backdrop-blur-xl sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -171,8 +185,10 @@ export default async function DashboardPage() {
         </div>
       </nav>
 
+      {/* Main Grid Layout */}
       <main className="max-w-7xl mx-auto px-6 py-10 grid grid-cols-1 xl:grid-cols-12 gap-10 relative z-10">
         
+        {/* Left Column: Matches & History */}
         <div className="xl:col-span-8 space-y-12">
           
           <section>
@@ -324,6 +340,7 @@ export default async function DashboardPage() {
 
         </div>
 
+        {/* Right Column: Leaderboard */}
         <div className="xl:col-span-4">
           <div className="bg-zinc-900/40 border border-white/5 rounded-3xl p-8 sticky top-28 backdrop-blur-md shadow-2xl">
             

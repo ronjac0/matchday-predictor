@@ -2,32 +2,32 @@
 
 import { useState, useEffect } from 'react';
 import confetti from 'canvas-confetti';
+import { clearBet } from '../actions/clear-bet';
 
 export default function BetPopup({ bets, matches }: { bets: any[], matches: any[] }) {
   const [popupBet, setPopupBet] = useState<any>(null);
   const [isVisible, setIsVisible] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
 
   useEffect(() => {
-    const resolvedBets = bets.filter(b => b.status === 'won' || b.status === 'lost');
+    // Only show popup for bets that are won/lost AND haven't been cleared yet
+    const resolvedBets = bets.filter(b => (b.status === 'won' || b.status === 'lost') && !b.is_cleared);
     
-    for (const bet of resolvedBets) {
-      if (!sessionStorage.getItem(`seen_bet_${bet.id}`)) {
-        setPopupBet(bet);
-        setTimeout(() => {
-          setIsVisible(true);
-          // TRIGGER CONFETTI IF THEY WON!
-          if (bet.status === 'won') {
-            confetti({
-              particleCount: 150,
-              spread: 80,
-              origin: { y: 0.6 },
-              colors: ['#10b981', '#fbbf24', '#ffffff'],
-              disableForReducedMotion: true
-            });
-          }
-        }, 400);
-        break; 
-      }
+    if (resolvedBets.length > 0) {
+      const bet = resolvedBets[0];
+      setPopupBet(bet);
+      setTimeout(() => {
+        setIsVisible(true);
+        if (bet.status === 'won') {
+          confetti({
+            particleCount: 150,
+            spread: 80,
+            origin: { y: 0.6 },
+            colors: ['#10b981', '#fbbf24', '#ffffff'],
+            disableForReducedMotion: true
+          });
+        }
+      }, 400);
     }
   }, [bets]);
 
@@ -37,11 +37,15 @@ export default function BetPopup({ bets, matches }: { bets: any[], matches: any[
   const matchName = match ? `${match.team_a} vs ${match.team_b}` : 'Matchup';
   const isWin = popupBet.status === 'won';
 
-  const handleClose = () => {
+  const handleClose = async () => {
+    setIsClearing(true);
+    // Tell the database to hide this bet forever
+    await clearBet(popupBet.id);
+    
     setIsVisible(false);
     setTimeout(() => {
-      sessionStorage.setItem(`seen_bet_${popupBet.id}`, 'true');
       setPopupBet(null);
+      setIsClearing(false);
     }, 300); 
   };
 
@@ -66,15 +70,19 @@ export default function BetPopup({ bets, matches }: { bets: any[], matches: any[
 
         <div className={`inline-block px-6 py-3 rounded-xl mb-8 border ${isWin ? 'bg-emerald-950/30 border-emerald-900/50 text-emerald-400' : 'bg-red-950/30 border-red-900/50 text-red-400'}`}>
           <span className="text-[10px] font-bold uppercase tracking-widest block mb-1">
-            {isWin ? 'Payout (Est)' : 'Lost Wager'}
+            {isWin ? 'Payout' : 'Lost Wager'}
           </span>
           <span className="text-2xl font-black font-mono">
             {isWin ? '+' : '-'}{popupBet.wager_amount} PTS
           </span>
         </div>
 
-        <button onClick={handleClose} className="w-full bg-white text-black hover:bg-zinc-200 font-black uppercase tracking-widest py-4 rounded-xl text-sm transition-colors">
-          Continue
+        <button 
+          onClick={handleClose} 
+          disabled={isClearing}
+          className="w-full bg-white text-black hover:bg-zinc-200 font-black uppercase tracking-widest py-4 rounded-xl text-sm transition-colors disabled:opacity-50"
+        >
+          {isClearing ? 'Clearing...' : 'Continue'}
         </button>
       </div>
     </div>

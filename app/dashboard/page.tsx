@@ -103,7 +103,7 @@ export default async function DashboardPage() {
     supabase.from('users').select('*').eq('id', user.id).single(),
     supabase.from('matches').select('*').order('match_time', { ascending: true }),
     supabase.from('users').select('display_name, wallet_balance').order('wallet_balance', { ascending: false }).limit(10),
-    supabase.from('bets').select('*').eq('user_id', user.id)
+    supabase.from('bets').select('*').eq('user_id', user.id).eq('is_cleared', false)
   ]);
 
   const userBetsMap = new Map();

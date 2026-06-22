@@ -3,78 +3,46 @@
 import { createClient } from '@/lib/supabase';
 import { revalidatePath } from 'next/cache';
 
-// FIX: Explicitly returning Promise<void> to satisfy Vercel's strict type-checker
-export async function placeBet(formData: FormData): Promise<void> {
+export async function placeBet(formData: FormData) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   
-  if (!user) {
-    console.error('Not authenticated');
-    return;
-  }
+  if (!user) return;
 
   const matchId = formData.get('matchId') as string;
   const predictedTeam = formData.get('predictedTeam') as string;
   const wagerAmount = parseInt(formData.get('wagerAmount') as string);
 
-  if (!matchId || !predictedTeam || isNaN(wagerAmount) || wagerAmount <= 0) {
-    console.error('Invalid bet details');
+  if (!matchId || !predictedTeam || !wagerAmount || wagerAmount <= 0) return;
+
+  // 1. Get user balance AND match data simultaneously
+  const [userProfile, matchData] = await Promise.all([
+    supabase.from('users').select('wallet_balance').eq('id', user.id).single(),
+    supabase.from('matches').select('team_a, team_b, odds_team_a, odds_team_b').eq('id', matchId).single()
+  ]);
+
+  if (!userProfile.data || userProfile.data.wallet_balance < wagerAmount) {
+    console.error("Insufficient funds");
     return;
   }
 
-  // 1. Check if the user has ALREADY bet on this match
-  const { data: existingBet } = await supabase
-    .from('bets')
-    .select('id')
-    .eq('user_id', user.id)
-    .eq('match_id', matchId)
-    .single();
+  // 2. Determine the exact odds for the chosen team
+  const isTeamA = predictedTeam === matchData.data?.team_a;
+  const lockedOdds = isTeamA ? matchData.data?.odds_team_a : matchData.data?.odds_team_b;
 
-  if (existingBet) {
-    console.error('You have already placed a bet on this match. One bet per fixture!');
-    return;
-  }
+  // 3. Deduct balance and insert the bet with the locked odds
+  await supabase.from('users').update({ 
+    wallet_balance: userProfile.data.wallet_balance - wagerAmount 
+  }).eq('id', user.id);
 
-  // 2. Fetch User Profile
-  const { data: userData, error: userError } = await supabase
-    .from('users')
-    .select('wallet_balance')
-    .eq('id', user.id)
-    .single();
-
-  if (userError || !userData) {
-    console.error('User profile not found');
-    return;
-  }
-  
-  if (userData.wallet_balance < wagerAmount) {
-    console.error('Insufficient virtual coins!');
-    return;
-  }
-
-  // 3. Deduct from wallet
-  const newBalance = userData.wallet_balance - wagerAmount;
-  await supabase
-    .from('users')
-    .update({ wallet_balance: newBalance })
-    .eq('id', user.id);
-
-  // 4. Place the bet
-  const { error: betError } = await supabase.from('bets').insert({
+  await supabase.from('bets').insert({
     user_id: user.id,
     match_id: matchId,
     predicted_team: predictedTeam,
     wager_amount: wagerAmount,
+    locked_odds: lockedOdds,
     status: 'pending'
   });
 
-  if (betError) {
-    // Refund if bet database insert fails
-    await supabase.from('users').update({ wallet_balance: userData.wallet_balance }).eq('id', user.id);
-    console.error('Failed to record your bet.');
-    return;
-  }
-
-  // Instantly refresh the dashboard to show the new bet and updated balance
   revalidatePath('/dashboard');
 }

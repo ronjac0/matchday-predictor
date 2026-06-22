@@ -1,3 +1,4 @@
+import SmartBetForm from './smart-bet-form'
 export const dynamic = 'force-dynamic';
 
 import { createClient } from '@/lib/supabase';
@@ -249,7 +250,7 @@ export default async function DashboardPage() {
                             </div>
                           </div>
                         ) : (
-                          <form action={placeBet} className="flex flex-col sm:flex-row gap-4 items-center">
+                          <SmartBetForm match={match} />
                             <input type="hidden" name="matchId" value={match.id} />
                             
                             <div className="w-full sm:w-1/3 relative">

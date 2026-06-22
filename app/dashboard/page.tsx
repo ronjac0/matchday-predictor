@@ -1,3 +1,4 @@
+import { forceSettleBets } from '../actions/force-settle';
 // ADD THIS EXACT LINE AT THE VERY TOP to kill the Next.js cache
 export const dynamic = 'force-dynamic';
 
@@ -158,6 +159,12 @@ export default async function DashboardPage() {
                 🎁 CLAIM +50
               </button>
             </form>
+            {/* GOD MODE: FORCE SETTLEMENT BUTTON */}
+<form action={forceSettleBets}>
+  <button type="submit" className="group flex items-center gap-2 text-[10px] font-black text-red-400 hover:text-white transition-colors bg-red-500/10 border border-red-500/20 px-4 py-2 rounded-full hover:bg-red-500/40 uppercase tracking-widest">
+    🚨 FORCE PAYOUT
+  </button>
+</form>
 
             <form action={syncLiveMatches}>
               <button type="submit" className="group flex items-center gap-2 text-xs font-bold text-zinc-400 hover:text-white transition-colors bg-white/5 border border-white/10 px-4 py-2 rounded-full hover:bg-white/10">

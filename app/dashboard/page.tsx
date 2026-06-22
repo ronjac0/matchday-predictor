@@ -1,13 +1,14 @@
-import SmartBetForm from './smart-bet-form'
+// ADD THIS EXACT LINE AT THE VERY TOP to kill the Next.js cache
 export const dynamic = 'force-dynamic';
 
 import { createClient } from '@/lib/supabase';
 import { redirect } from 'next/navigation';
-import { placeBet } from '../actions/place-bet';
 import { syncLiveMatches } from '../actions/sync-matches';
 import { claimDailyBonus } from '../actions/claim-daily';
 import BetPopup from './bet-popup';
+import SmartBetForm from './smart-bet-form'; // NEW: Imports your interactive betting slip
 
+// --- BULLETPROOF FLAG DICTIONARY ---
 const getFlag = (teamName: string) => {
   if (!teamName) return '🏳️';
   const name = teamName.toLowerCase();
@@ -83,19 +84,19 @@ export default async function DashboardPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/auth');
 
-  // Background Sync
+  // Background Sync (Invisible to the user now)
   const { data: recentMatch } = await supabase.from('matches').select('match_time').order('match_time', { ascending: false }).limit(1);
   if (!recentMatch || recentMatch.length === 0) {
     await syncLiveMatches(new FormData());
   }
 
-  // Fetch all necessary data
+  // Fetch all necessary data, including cleared bets for analytics
   const [userProfile, matchesData, leaderboardData, activeBetsData, allHistoryData] = await Promise.all([
     supabase.from('users').select('*').eq('id', user.id).single(),
     supabase.from('matches').select('*').order('match_time', { ascending: true }),
     supabase.from('users').select('display_name, wallet_balance').order('wallet_balance', { ascending: false }).limit(10),
     supabase.from('bets').select('*').eq('user_id', user.id).eq('is_cleared', false),
-    supabase.from('bets').select('status').eq('user_id', user.id) // For analytics
+    supabase.from('bets').select('status').eq('user_id', user.id) // For win rate analytics
   ]);
 
   const userBetsMap = new Map();
@@ -103,7 +104,7 @@ export default async function DashboardPage() {
   
   const currentTier = getManagerTier(userProfile.data?.wallet_balance || 0);
 
-  // --- NEW: STATISTICAL WIN RATE CALCULATION ---
+  // --- STATISTICAL WIN RATE CALCULATION ---
   const totalSettled = allHistoryData.data?.filter(b => b.status === 'won' || b.status === 'lost').length || 0;
   const totalWon = allHistoryData.data?.filter(b => b.status === 'won').length || 0;
   const winRate = totalSettled > 0 ? Math.round((totalWon / totalSettled) * 100) : 0;
@@ -156,14 +157,13 @@ export default async function DashboardPage() {
             
             <div className="h-6 w-px bg-white/10 hidden sm:block"></div>
             
-            {/* NEW: Cleaned up Manager Portfolio Area */}
+            {/* MANAGER PORTFOLIO & BADGE */}
             <div className="flex items-center gap-4">
               <div className="text-right hidden md:block">
                 <p className={`text-[10px] uppercase tracking-widest font-black ${currentTier.color}`}>{currentTier.title}</p>
                 <p className="text-sm font-bold text-white leading-tight">{userProfile.data?.display_name}</p>
               </div>
 
-              {/* NEW: Win Rate Badge */}
               <div className="hidden sm:flex flex-col items-center justify-center bg-zinc-900 border border-white/10 px-3 py-1.5 rounded-xl">
                 <span className="text-[8px] text-zinc-500 uppercase tracking-widest font-black">Win Rate</span>
                 <span className="text-sm font-mono font-black text-zinc-300">{winRate}%</span>
@@ -247,35 +247,14 @@ export default async function DashboardPage() {
                               <span className="text-sm font-bold text-white">{userBetDetails.predicted_team}</span>
                               <span className="text-emerald-500 font-bold">•</span>
                               <span className="text-sm font-black text-white font-mono">{userBetDetails.wager_amount} PTS</span>
+                              {userBetDetails.locked_odds && (
+                                <span className="text-[10px] text-zinc-500 ml-2">@{userBetDetails.locked_odds}x</span>
+                              )}
                             </div>
                           </div>
                         ) : (
+                          // NEW: Uses the client component for live calculation
                           <SmartBetForm match={match} />
-                            <input type="hidden" name="matchId" value={match.id} />
-                            
-                            <div className="w-full sm:w-1/3 relative">
-                              <select name="predictedTeam" required className="w-full bg-zinc-900/80 border border-white/10 rounded-xl p-3.5 text-sm font-bold text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 appearance-none cursor-pointer transition-colors">
-                                <option value="" className="text-zinc-500">Select Winner...</option>
-                                <option value={match.team_a}>{match.team_a}</option>
-                                <option value={match.team_b}>{match.team_b}</option>
-                              </select>
-                              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500">▼</div>
-                            </div>
-                            
-                            {/* NEW: Expected Return UI on the input */}
-                            <div className="w-full sm:w-1/3 relative flex items-center">
-                              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 text-xs font-black tracking-widest">PTS</span>
-                              <input type="number" name="wagerAmount" placeholder="Stake" required min="1" className="w-full bg-zinc-900/80 border border-white/10 rounded-xl p-3.5 pl-12 pr-12 text-sm font-black text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 font-mono transition-colors" />
-                              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-emerald-500/50 text-[10px] font-black tracking-widest hidden sm:block">2.0x</span>
-                            </div>
-                            
-                            <button 
-                              type="submit" 
-                              className="w-full sm:w-1/3 bg-emerald-500 hover:bg-emerald-400 text-black font-black uppercase tracking-widest rounded-xl p-3.5 text-sm transition-all transform hover:scale-[1.02] shadow-[0_0_20px_rgba(16,185,129,0.2)]"
-                            >
-                              Place Wager
-                            </button>
-                          </form>
                         )}
                       </div>
                     </div>
@@ -306,7 +285,14 @@ export default async function DashboardPage() {
                           <p className="text-sm font-bold text-white">{matchName}</p>
                           <div className="flex items-center gap-2 mt-1.5">
                             <span className="text-xs text-zinc-500 font-semibold uppercase tracking-widest">Pick:</span>
-                            <span className="text-xs font-black text-white bg-white/10 px-2 py-0.5 rounded-md">{bet.predicted_team} {getFlag(bet.predicted_team)}</span>
+                            <span className="text-xs font-black text-white bg-white/10 px-2 py-0.5 rounded-md">
+                              {bet.predicted_team} {getFlag(bet.predicted_team)}
+                            </span>
+                            {bet.locked_odds && (
+                               <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded">
+                                 @{bet.locked_odds}x
+                               </span>
+                            )}
                           </div>
                         </div>
                         
